@@ -1,13 +1,18 @@
 import sys
-import requests
 from music21 import *
 from svgelements import *
-import subprocess
-import os
-
 
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+class StaffSystem:
+    def __init__(self, y):
+        self.y = y
+        self.notes = list()
+        self.dots = list()
+        self.stems = list()
+        self.hooks = list()
+        self.rests = list()
+
 
 def bbox_to_rect(bbox, color):
     x = bbox[0]
@@ -25,6 +30,22 @@ def bbox_to_dict(bbox):
     d['w'] = bbox[2] - bbox[0]
     d['h'] = bbox[3] - bbox[1]
     return d
+
+
+def get_staff_system_index(element, systems):
+    element_y = element.bbox()[1]
+    min_dist = sys.maxsize
+    min_index = 0
+    for i in range(len(systems)):
+        dist = abs(element_y - systems[i].y)
+        if dist < min_dist:
+            min_dist = dist
+            min_index = i
+    return min_index
+
+
+def sort_after_x(element):
+    return element.bbox()[0]
 
 
 # Press the green button in the gutter to run the script.
@@ -60,13 +81,31 @@ if __name__ == '__main__':
     svgHooks = list()
     svgNoteDots = list()
 
-    svg = SVG.parse('experiement/pitch_v2-1.svg')
+    svg = SVG.parse('experiement/durations_only_dots-1.svg')
+    linesIndex = 0
+    staffLines = None
+    systems = list()
     for element in svg.elements():
         classType = element.values.get('class')
+        if classType == 'StaffLines':
+            if linesIndex == 0:
+                staffLines = element
+                linesIndex += 1
+            elif linesIndex == 4:
+                staffLines += element
+                linesIndex = 0
+                systems.append(StaffSystem((staffLines.bbox()[3] - staffLines.bbox()[1]) / 2 + staffLines.bbox()[1]))
+            else:
+                staffLines += element
+                linesIndex += 1
+
+    for element in svg.elements():
+        # print(element)
+        classType = element.values.get('class')
         if classType == 'Note':
-            svgNotes.append(element)
+            systems[get_staff_system_index(element, systems)].notes.append(element)
         elif classType == 'Rest':
-            svgRests.append(element)
+            systems[get_staff_system_index(element, systems)].rests.append(element)
         elif classType == 'TimeSig':
             svgTimesigs.append(element)
         elif classType == 'KeySig':
@@ -78,12 +117,19 @@ if __name__ == '__main__':
         elif classType == 'Accidental':
             svgAccidentals.append(element)
         elif classType == 'Stem':
-            svgStems.append(element)
+            systems[get_staff_system_index(element, systems)].stems.append(element)
         elif classType == 'Hook':
-            svgHooks.append(element)
+            systems[get_staff_system_index(element, systems)].hooks.append(element)
         elif classType == 'NoteDot':
-            svgNoteDots.append(element)
-    print(len(svgKeysigs))
+            systems[get_staff_system_index(element, systems)].dots.append(element)
+
+    for system in systems:
+        svgNotes.extend(sorted(system.notes, key=sort_after_x))
+        svgNoteDots.extend(sorted(system.dots, key=sort_after_x))
+        svgStems.extend(sorted(system.stems, key=sort_after_x))
+        svgHooks.extend(sorted(system.hooks, key=sort_after_x))
+        svgRests.extend(sorted(system.rests, key=sort_after_x))
+
     svgAccidentalsIter = iter(svgAccidentals)
     svgKeysigsIter = iter(svgKeysigs)
     svgClefsIter = iter(svgClefs)
@@ -96,11 +142,12 @@ if __name__ == '__main__':
     svgHooksIter = iter(svgHooks)
     svgNoteDotsIter = iter(svgNoteDots)
 
-    score = converter.parse('experiement/pitch_v2.musicxml')
+    score = converter.parse('experiement/durations_only_dots.musicxml')
 
     lastClef = None
     lastKeySign = None
     lastTimeSign = None
+    currentClef = clefLineLoc['treble']
 
 
     def add_clef():
@@ -151,6 +198,7 @@ if __name__ == '__main__':
         if old_last_timesign is not None:
             add_timesign()
 
+
     partsStream = score.getElementsByClass(stream.Part)
     for part in score.getElementsByClass(stream.Part):
         mIndex = 0
@@ -191,64 +239,23 @@ if __name__ == '__main__':
                     else:
                         add_clef()
                         add_keysign()
-
-                # if isinstance(measure[i], note.Note) or isinstance(measure[i], note.Rest):
-                # print(measure[i])
+                elif isinstance(measure[i], note.Note):
+                    duration = measure[i].quarterLength
+                    if not (measure[i].pitch.accidental is None):
+                        bbox_to_rect(next(svgAccidentalsIter).bbox(), '#f0f000')
+                    boxElement = next(svgNotesIter)
+                    if duration < 4.0:  # all notes with a stem
+                        boxElement += next(svgStemsIter)
+                    if measure[i].duration.quarterLength in (3.0, 1.5, 0.75):  # all notes with a dot
+                        boxElement += next(svgNoteDotsIter)
+                    # how the fuck can I detect which notes have hooks and which beam
+                    # if duration > 1.0:
+                    #     boxElement += next(svgHooksIter)
+                    bbox_to_rect(boxElement.bbox(), '#ff0000')
+                elif isinstance(measure[i], note.Rest):
+                    duration = measure[i].quarterLength
+                    boxElement = next(svgRestsIter)
+                    if measure[i].duration.quarterLength in (3.0, 1.5, 0.75):  # all notes with a dot
+                        boxElement += next(svgNoteDotsIter)
+                    bbox_to_rect(boxElement.bbox(), '#00f0f0')
             mIndex += 1
-
-    #
-    # for note in score.flat.getElementsByClass("Note"):
-    #     print(note.step, note.duration, note.offset, note.octave)
-    #
-    # for clef in score.flat.getElementsByClass("Clef"):
-    #     print(clef.name, clef.offset, clef.lowestLine, clef.line)
-    #
-    # for rest in score.flat.getElementsByClass("Rest"):
-    #     print(rest, rest.duration, rest.offset)
-    # #partsStream.show('text')
-    # print("\n")
-    currentClef = clefLineLoc['treble']
-    elements = list()
-    # for element in score.flat:
-    #     print(element)
-    # if isinstance(element, note.Note):
-    #     duration = element.quarterLength
-    #     if not (element.pitch.accidental is None):
-    #         bbox_to_rect(next(svgAccidentalsIter).bbox(), '#f0f000')
-    #         # print(element.nameWithOctave, "accidental:", element.pitch.accidental.name)
-    #
-    #     line = currentClef[element.nameWithOctave.replace('-', '').replace('#', '')]
-    #     # print(str(duration) + ', ' + str(line))
-    #     boxElement = next(svgNotesIter)
-    #     if duration < 4.0:  # all notes with a stem
-    #         boxElement += next(svgStemsIter)
-    #     if duration in (3.0, 1.5, 0.75):  # all notes with a dot
-    #         boxElement += next(svgNoteDotsIter)
-    #     # how the fuck can I detect which notes have hooks and which beam
-    #     # if duration > 1.0:
-    #     #     boxElement += next(svgHooksIter)
-    #     bbox_to_rect(boxElement.bbox(), '#ff0000')
-    # elif isinstance(element, note.Rest):
-    #     duration = element.quarterLength
-    #     # print(duration)
-    #     boxElement = next(svgRestsIter)
-    #     # if duration in (3.0, 1.5, 0.75):  # all notes with a dot
-    #     #     print('rest')
-    #     #     boxElement += next(svgNoteDotsIter)
-    #     bbox_to_rect(boxElement.bbox(), '#00f0f0')
-    # elif isinstance(element, clef.Clef):
-    #     # print("Clef: " + element.name)
-    #     currentClef = clefLineLoc[element.name]
-    #     boxElement = next(svgClefsIter)
-    #     # bbox_to_rect(boxElement.bbox(), '#0f0f00')
-    # if isinstance(element, meter.TimeSignature):
-    #     # element.numerator
-    #     numerator = next(svgTimesigsIter)
-    #     bbox_to_rect(numerator.bbox(), '#F06C29')
-    #     # element.denominator
-    #     denominator = next(svgTimesigsIter)
-    #     bbox_to_rect(denominator.bbox(), '#F06C29')
-    # if isinstance(element, key.KeySignature):
-    #     print(element)
-
-    # print(len(partsStream))
