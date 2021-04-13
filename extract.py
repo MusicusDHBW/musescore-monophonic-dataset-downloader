@@ -216,12 +216,19 @@ if __name__ == '__main__':
                 beam_type = 'continue'
         return beam_type
 
+    def prepare_barline(barline):
+        stroke_half_width = float(barline.values.get('stroke-width')) / 2
+        barline_bbox = barline.bbox()
+        barline += SimpleLine(barline_bbox[0], barline_bbox[1], barline_bbox[0] - stroke_half_width, barline_bbox[1])
+        barline += SimpleLine(barline_bbox[2], barline_bbox[3], barline_bbox[2] + stroke_half_width, barline_bbox[3])
+        return barline
 
     partsStream = score.getElementsByClass(stream.Part)
     for part in score.getElementsByClass(stream.Part):
         mIndex = 0
         for measure in part.getElementsByClass(stream.Measure):
             # print(len(measure))
+            bbox_to_rect(prepare_barline(next(svgBarlinesIter)).bbox(), '#fca103')
             for i in range(0, len(measure)):
                 if isinstance(measure[i], layout.SystemLayout):
                     if isinstance(measure[i + 1], clef.Clef):
@@ -287,4 +294,7 @@ if __name__ == '__main__':
                     if measure[i].duration.quarterLength in (3.0, 1.5, 0.75, 0.375, 0.1875):  # all notes with a dot
                         boxElement += next(svgNoteDotsIter)
                     bbox_to_rect(boxElement.bbox(), '#00f0f0')
+                elif isinstance(measure[i], bar.Barline):
+                    bbox_to_rect(prepare_barline(next(svgBarlinesIter)).bbox(), '#fca103')
+
             mIndex += 1
