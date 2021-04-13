@@ -81,7 +81,7 @@ if __name__ == '__main__':
     svgHooks = list()
     svgNoteDots = list()
 
-    svg = SVG.parse('experiement/beams-1.svg')
+    svg = SVG.parse('experiment/beams-1.svg')
     linesIndex = 0
     staffLines = None
     systems = list()
@@ -142,7 +142,7 @@ if __name__ == '__main__':
     svgHooksIter = iter(svgHooks)
     svgNoteDotsIter = iter(svgNoteDots)
 
-    score = converter.parse('experiement/beams.musicxml')
+    score = converter.parse('experiment/beams.musicxml')
 
     lastClef = None
     lastKeySign = None
