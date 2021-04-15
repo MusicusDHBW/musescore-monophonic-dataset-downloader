@@ -81,7 +81,7 @@ if __name__ == '__main__':
     svgHooks = list()
     svgNoteDots = list()
 
-    svg = SVG.parse('experiment/beams-1.svg')
+    svg = SVG.parse('experiment/731_trim-1.svg')
     linesIndex = 0
     staffLines = None
     systems = list()
@@ -142,7 +142,7 @@ if __name__ == '__main__':
     svgHooksIter = iter(svgHooks)
     svgNoteDotsIter = iter(svgNoteDots)
 
-    score = converter.parse('experiment/beams.musicxml')
+    score = converter.parse('experiment/731.musicxml')
 
     lastClef = None
     lastKeySign = None
@@ -231,32 +231,38 @@ if __name__ == '__main__':
             bbox_to_rect(prepare_barline(next(svgBarlinesIter)).bbox(), '#fca103')
             for i in range(0, len(measure)):
                 if isinstance(measure[i], layout.SystemLayout):
-                    if isinstance(measure[i + 1], clef.Clef):
-                        set_clef(measure[i + 1])
+                    attributes = list()
+                    for j in range(i+1, len(measure)):
+                        if isinstance(measure[j], key.KeySignature) or isinstance(measure[j], meter.TimeSignature) or isinstance(measure[j], meter.TimeSignature):
+                            attributes.append(measure[j])
+                        elif isinstance(measure[j], note.Note) or isinstance(measure[j], note.Rest):
+                            break
+                    if isinstance(attributes[0], clef.Clef) and len(attributes) >= 1:
+                        set_clef(attributes[0])
                         add_clef()
-                        if isinstance(measure[i + 2], key.KeySignature):
-                            set_keysign(measure[i + 2])
+                        if isinstance(attributes[1], key.KeySignature) and len(attributes) >= 2:
+                            set_keysign(attributes[1])
                             add_keysign()
-                            if isinstance(measure[i + 3], meter.TimeSignature):
-                                set_timesign(measure[i + 3])
+                            if isinstance(attributes[2], meter.TimeSignature) and len(attributes) == 3:
+                                set_timesign(attributes[2])
                                 add_timesign()
-                        elif isinstance(measure[i + 2], meter.TimeSignature):
-                            set_timesign(measure[i + 2])
+                        elif isinstance(attributes[1], meter.TimeSignature) and len(attributes) >= 2:
+                            set_timesign(attributes[1])
                             add_timesign()
 
                             add_keysign()
                         else:
                             add_keysign()
-                    elif isinstance(measure[i + 1], key.KeySignature):
-                        set_keysign(measure[i + 1])
+                    elif isinstance(attributes[0], key.KeySignature) and len(attributes) >= 1:
+                        set_keysign(attributes[0])
                         add_keysign()
 
                         add_clef()
-                        if isinstance(measure[i + 1], meter.TimeSignature):
-                            set_timesign(measure[i + 1])
+                        if isinstance(attributes[0], meter.TimeSignature) and len(attributes) >= 1:
+                            set_timesign(attributes[0])
                             add_timesign()
-                    elif isinstance(measure[i + 1], meter.TimeSignature):
-                        set_timesign(measure[i + 1])
+                    elif isinstance(attributes[0], meter.TimeSignature) and len(attributes) >= 1:
+                        set_timesign(attributes[0])
                         add_timesign()
 
                         add_clef()
@@ -266,6 +272,7 @@ if __name__ == '__main__':
                         add_keysign()
                 elif isinstance(measure[i], note.Note):
                     duration = measure[i].quarterLength
+                    print(measure[i])
                     if not (measure[i].pitch.accidental is None):
                         bbox_to_rect(next(svgAccidentalsIter).bbox(), '#f0f000')
                     boxElement = next(svgNotesIter)
