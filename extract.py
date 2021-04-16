@@ -113,7 +113,8 @@ if __name__ == '__main__':
         elif classType == 'Clef':
             svgClefs.append(element)
         elif classType == 'BarLine':
-            svgBarlines.append(element)
+            if element.values.get('stroke-width') is not None:
+                svgBarlines.append(element)
         elif classType == 'Accidental':
             svgAccidentals.append(element)
         elif classType == 'Stem':
@@ -217,18 +218,22 @@ if __name__ == '__main__':
         return beam_type
 
     def prepare_barline(barline):
-        stroke_half_width = float(barline.values.get('stroke-width')) / 2
+        stroke_width = barline.values.get('stroke-width')
         barline_bbox = barline.bbox()
+        stroke_half_width = float(stroke_width) / 2
         barline += SimpleLine(barline_bbox[0], barline_bbox[1], barline_bbox[0] - stroke_half_width, barline_bbox[1])
         barline += SimpleLine(barline_bbox[2], barline_bbox[3], barline_bbox[2] + stroke_half_width, barline_bbox[3])
         return barline
+
+    for barline in svgBarlines:
+        bbox_to_rect(prepare_barline(barline).bbox(), '#fca103')
 
     partsStream = score.getElementsByClass(stream.Part)
     for part in score.getElementsByClass(stream.Part):
         mIndex = 0
         for measure in part.getElementsByClass(stream.Measure):
-            # print(len(measure))
-            bbox_to_rect(prepare_barline(next(svgBarlinesIter)).bbox(), '#fca103')
+            # use other solution till classification for barlines is required
+            # bbox_to_rect(prepare_barline(next(svgBarlinesIter)).bbox(), '#fca103')
             for i in range(0, len(measure)):
                 if isinstance(measure[i], layout.SystemLayout):
                     attributes = list()
@@ -272,9 +277,10 @@ if __name__ == '__main__':
                         add_keysign()
                 elif isinstance(measure[i], note.Note):
                     duration = measure[i].quarterLength
-                    print(measure[i])
-                    if not (measure[i].pitch.accidental is None):
-                        bbox_to_rect(next(svgAccidentalsIter).bbox(), '#f0f000')
+                    # print(measure[i])
+                    # if not (measure[i].pitch.accidental is None):
+                        # print(measure[i].pitch.accidental)
+                        # bbox_to_rect(next(svgAccidentalsIter).bbox(), '#f0f000')
                     boxElement = next(svgNotesIter)
                     if duration < 4.0:  # all notes with a stem
                         boxElement += next(svgStemsIter)
@@ -301,7 +307,9 @@ if __name__ == '__main__':
                     if measure[i].duration.quarterLength in (3.0, 1.5, 0.75, 0.375, 0.1875):  # all notes with a dot
                         boxElement += next(svgNoteDotsIter)
                     bbox_to_rect(boxElement.bbox(), '#00f0f0')
-                elif isinstance(measure[i], bar.Barline):
-                    bbox_to_rect(prepare_barline(next(svgBarlinesIter)).bbox(), '#fca103')
+                # use other solution till classification for barlines is required
+                # elif isinstance(measure[i], bar.Barline):
+                #     if measure[i].musicXMLBarStyle() not in ('short', 'tick', 'heavy', 'dotted', 'dashed'):
+                #         bbox_to_rect(prepare_barline(next(svgBarlinesIter)).bbox(), '#fca103')
 
             mIndex += 1
