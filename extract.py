@@ -233,35 +233,35 @@ if __name__ == '__main__':
                 if isinstance(measure[i], layout.SystemLayout):
                     attributes = list()
                     for j in range(i+1, len(measure)):
-                        if isinstance(measure[j], key.KeySignature) or isinstance(measure[j], meter.TimeSignature) or isinstance(measure[j], meter.TimeSignature):
+                        if isinstance(measure[j], key.KeySignature) or isinstance(measure[j], meter.TimeSignature) or isinstance(measure[j], clef.Clef):
                             attributes.append(measure[j])
                         elif isinstance(measure[j], note.Note) or isinstance(measure[j], note.Rest):
                             break
-                    if isinstance(attributes[0], clef.Clef) and len(attributes) >= 1:
+                    if len(attributes) >= 1 and isinstance(attributes[0], clef.Clef):
                         set_clef(attributes[0])
                         add_clef()
-                        if isinstance(attributes[1], key.KeySignature) and len(attributes) >= 2:
+                        if len(attributes) >= 2 and isinstance(attributes[1], key.KeySignature):
                             set_keysign(attributes[1])
                             add_keysign()
-                            if isinstance(attributes[2], meter.TimeSignature) and len(attributes) == 3:
+                            if len(attributes) >= 3 and isinstance(attributes[2], meter.TimeSignature):
                                 set_timesign(attributes[2])
                                 add_timesign()
-                        elif isinstance(attributes[1], meter.TimeSignature) and len(attributes) >= 2:
+                        elif len(attributes) >= 2 and isinstance(attributes[1], meter.TimeSignature):
                             set_timesign(attributes[1])
                             add_timesign()
 
                             add_keysign()
                         else:
                             add_keysign()
-                    elif isinstance(attributes[0], key.KeySignature) and len(attributes) >= 1:
+                    elif len(attributes) >= 1 and isinstance(attributes[0], key.KeySignature):
                         set_keysign(attributes[0])
                         add_keysign()
 
                         add_clef()
-                        if isinstance(attributes[0], meter.TimeSignature) and len(attributes) >= 1:
+                        if len(attributes) >= 1 and isinstance(attributes[0], meter.TimeSignature):
                             set_timesign(attributes[0])
                             add_timesign()
-                    elif isinstance(attributes[0], meter.TimeSignature) and len(attributes) >= 1:
+                    elif len(attributes) >= 1 and isinstance(attributes[0], meter.TimeSignature):
                         set_timesign(attributes[0])
                         add_timesign()
 
