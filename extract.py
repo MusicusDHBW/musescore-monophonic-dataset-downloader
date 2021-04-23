@@ -308,7 +308,6 @@ if __name__ == '__main__':
                         set_clef(measure[i])
                 elif isinstance(measure[i], note.Note):
                     duration = measure[i].quarterLength
-                    #print(measure[i].duration.dots)
                     accidental = measure[i].pitch.accidental
                     # if not (accidental is None):
                     #     #print(accidental.name, accidental.alter, measure[i].name[0], keys_alter.get(lastKeySign.sharps), lastKeySign.sharps)
@@ -324,23 +323,23 @@ if __name__ == '__main__':
                     #                      measure[i].tie is not None an):
                     #             bbox_to_rect(next(svgAccidentalsIter).bbox(), '#f0f000')
                     boxElement = next(svgNotesIter)
-                    if duration < 4.0:  # all notes with a stem
-                        boxElement += next(svgStemsIter)
-                    if measure[i].duration.dots == 1:  # all notes with a dot
-                        boxElement += next(svgNoteDotsIter)
-                    # how the fuck can I detect which notes have hooks and which beam
-                    if duration < 1.0:
-                        beams = measure[i].beams
-                        if len(beams) == 0:
-                            boxElement += next(svgHooksIter)
-                        else:
-                            beamType = beam_category(beams)
-                            # print(beamType, beams)
-                            bbox = boxElement.bbox()
-                            if beamType == 'start' and measure[i].stemDirection == 'up':
-                                boxElement += SimpleLine(bbox[2], bbox[3], bbox[2] + add_pixels, bbox[3])
-                            elif beamType == 'stop' and measure[i].stemDirection == 'down':
-                                boxElement += SimpleLine(bbox[0], bbox[1], bbox[0] - add_pixels, bbox[1])
+                    # if duration < 4.0:  # all notes with a stem
+                    #     boxElement += next(svgStemsIter)
+                    # if measure[i].duration.dots == 1:  # all notes with a dot
+                    #     boxElement += next(svgNoteDotsIter)
+                    # # how the fuck can I detect which notes have hooks and which beam
+                    # if duration < 1.0:
+                    #     beams = measure[i].beams
+                    #     if len(beams) == 0:
+                    #         boxElement += next(svgHooksIter)
+                    #     else:
+                    #         beamType = beam_category(beams)
+                    #         # print(beamType, beams)
+                    #         bbox = boxElement.bbox()
+                    #         if beamType == 'start' and measure[i].stemDirection == 'up':
+                    #             boxElement += SimpleLine(bbox[2], bbox[3], bbox[2] + add_pixels, bbox[3])
+                    #         elif beamType == 'stop' and measure[i].stemDirection == 'down':
+                    #             boxElement += SimpleLine(bbox[0], bbox[1], bbox[0] - add_pixels, bbox[1])
                     bbox_to_rect(boxElement.bbox(), '#ff0000')
                     # print(measure[i].quarterLength)
                     lastNote = measure[i]
@@ -348,8 +347,8 @@ if __name__ == '__main__':
                     duration = measure[i].quarterLength
                     boxElement = next(svgRestsIter)
                     #print(measure[i].duration.dots)
-                    if measure[i].duration.dots == 1:  # all notes with a dot
-                        boxElement += next(svgNoteDotsIter)
+                    # if measure[i].duration.dots == 1:  # all notes with a dot
+                    #     boxElement += next(svgNoteDotsIter)
                     bbox_to_rect(boxElement.bbox(), '#00f0f0')
                 # use other solution till classification for barlines is required
                 # elif isinstance(measure[i], bar.Barline):
