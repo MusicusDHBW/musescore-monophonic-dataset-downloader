@@ -2,6 +2,7 @@ import sys
 from music21 import *
 from svgelements import *
 
+
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 class StaffSystem:
@@ -69,6 +70,21 @@ if __name__ == '__main__':
         }
     }
 
+    keys_alter = {1: ['F'],
+                  2: ['F', 'C'],
+                  3: ['F', 'C', 'G'],
+                  4: ['F', 'C', 'G', 'D'],
+                  5: ['F', 'C', 'G', 'D', 'A'],
+                  6: ['F', 'C', 'G', 'D', 'A', 'E'],
+                  7: ['F', 'C', 'G', 'D', 'A', 'E', 'B'],
+                  -1: ['B'],
+                  -2: ['B', 'E'],
+                  -3: ['B', 'E', 'A'],
+                  -4: ['B', 'E', 'A', 'D'],
+                  -5: ['B', 'E', 'A', 'D', 'G'],
+                  -6: ['B', 'E', 'A', 'D', 'G', 'C'],
+                  -7: ['B', 'E', 'A', 'D', 'G', 'C', 'F']}
+
     svgAccidentals = list()
     svgKeysigs = list()
     svgClefs = list()
@@ -81,7 +97,7 @@ if __name__ == '__main__':
     svgHooks = list()
     svgNoteDots = list()
 
-    svg = SVG.parse('experiment/731_trim-1.svg')
+    svg = SVG.parse('experiment/durations_dots-1.svg')
     linesIndex = 0
     staffLines = None
     systems = list()
@@ -143,11 +159,12 @@ if __name__ == '__main__':
     svgHooksIter = iter(svgHooks)
     svgNoteDotsIter = iter(svgNoteDots)
 
-    score = converter.parse('experiment/731.musicxml')
+    score = converter.parse('experiment/durations_dots.musicxml')
 
     lastClef = None
     lastKeySign = None
     lastTimeSign = None
+    lastNote = None
     currentClef = clefLineLoc['treble']
 
     add_pixels = 20
@@ -217,6 +234,7 @@ if __name__ == '__main__':
                 beam_type = 'continue'
         return beam_type
 
+
     def prepare_barline(barline):
         stroke_width = barline.values.get('stroke-width')
         barline_bbox = barline.bbox()
@@ -224,6 +242,7 @@ if __name__ == '__main__':
         barline += SimpleLine(barline_bbox[0], barline_bbox[1], barline_bbox[0] - stroke_half_width, barline_bbox[1])
         barline += SimpleLine(barline_bbox[2], barline_bbox[3], barline_bbox[2] + stroke_half_width, barline_bbox[3])
         return barline
+
 
     for barline in svgBarlines:
         bbox_to_rect(prepare_barline(barline).bbox(), '#fca103')
@@ -237,8 +256,10 @@ if __name__ == '__main__':
             for i in range(0, len(measure)):
                 if isinstance(measure[i], layout.SystemLayout):
                     attributes = list()
-                    for j in range(i+1, len(measure)):
-                        if isinstance(measure[j], key.KeySignature) or isinstance(measure[j], meter.TimeSignature) or isinstance(measure[j], clef.Clef):
+                    for j in range(i + 1, len(measure)):
+                        if isinstance(measure[j], key.KeySignature) or isinstance(measure[j],
+                                                                                  meter.TimeSignature) or isinstance(
+                                measure[j], clef.Clef):
                             attributes.append(measure[j])
                         elif isinstance(measure[j], note.Note) or isinstance(measure[j], note.Rest):
                             break
@@ -275,16 +296,37 @@ if __name__ == '__main__':
                     else:
                         add_clef()
                         add_keysign()
+                elif not isinstance(measure[0], layout.SystemLayout) and (
+                        isinstance(measure[i], meter.TimeSignature) or isinstance(measure[i],
+                                                                                  key.KeySignature) or isinstance(
+                        measure[0], clef.Clef)):
+                    if isinstance(measure[i], meter.TimeSignature):
+                        set_timesign(measure[i])
+                    elif isinstance(measure[i], key.KeySignature):
+                        set_keysign(measure[i])
+                    elif isinstance(measure[i], clef.Clef):
+                        set_clef(measure[i])
                 elif isinstance(measure[i], note.Note):
                     duration = measure[i].quarterLength
-                    # print(measure[i])
-                    # if not (measure[i].pitch.accidental is None):
-                        # print(measure[i].pitch.accidental)
-                        # bbox_to_rect(next(svgAccidentalsIter).bbox(), '#f0f000')
+                    #print(measure[i].duration.dots)
+                    accidental = measure[i].pitch.accidental
+                    # if not (accidental is None):
+                    #     #print(accidental.name, accidental.alter, measure[i].name[0], keys_alter.get(lastKeySign.sharps), lastKeySign.sharps)
+                    #     if accidental.alter == 0:
+                    #         bbox_to_rect(next(svgAccidentalsIter).bbox(), '#f0f000')
+                    #     elif accidental.alter == 1 or accidental.alter == -1:
+                    #         if lastKeySign.sharps == 0:
+                    #             print(0)
+                    #             bbox_to_rect(next(svgAccidentalsIter).bbox(), '#f0f000')
+                    #         elif measure[i].name[0] not in keys_alter.get(lastKeySign.sharps) \
+                    #                 and (lastNote is None or
+                    #                      lastNote.nameWithOctave != measure[i].nameWithOctave or
+                    #                      measure[i].tie is not None an):
+                    #             bbox_to_rect(next(svgAccidentalsIter).bbox(), '#f0f000')
                     boxElement = next(svgNotesIter)
                     if duration < 4.0:  # all notes with a stem
                         boxElement += next(svgStemsIter)
-                    if measure[i].duration.quarterLength in (3.0, 1.5, 0.75, 0.375, 0.1875):  # all notes with a dot
+                    if measure[i].duration.dots == 1:  # all notes with a dot
                         boxElement += next(svgNoteDotsIter)
                     # how the fuck can I detect which notes have hooks and which beam
                     if duration < 1.0:
@@ -296,15 +338,17 @@ if __name__ == '__main__':
                             # print(beamType, beams)
                             bbox = boxElement.bbox()
                             if beamType == 'start' and measure[i].stemDirection == 'up':
-                                boxElement += SimpleLine(bbox[2], bbox[3], bbox[2]+add_pixels, bbox[3])
+                                boxElement += SimpleLine(bbox[2], bbox[3], bbox[2] + add_pixels, bbox[3])
                             elif beamType == 'stop' and measure[i].stemDirection == 'down':
-                                boxElement += SimpleLine(bbox[0], bbox[1], bbox[0]-add_pixels, bbox[1])
+                                boxElement += SimpleLine(bbox[0], bbox[1], bbox[0] - add_pixels, bbox[1])
                     bbox_to_rect(boxElement.bbox(), '#ff0000')
                     # print(measure[i].quarterLength)
+                    lastNote = measure[i]
                 elif isinstance(measure[i], note.Rest):
                     duration = measure[i].quarterLength
                     boxElement = next(svgRestsIter)
-                    if measure[i].duration.quarterLength in (3.0, 1.5, 0.75, 0.375, 0.1875):  # all notes with a dot
+                    #print(measure[i].duration.dots)
+                    if measure[i].duration.dots == 1:  # all notes with a dot
                         boxElement += next(svgNoteDotsIter)
                     bbox_to_rect(boxElement.bbox(), '#00f0f0')
                 # use other solution till classification for barlines is required
