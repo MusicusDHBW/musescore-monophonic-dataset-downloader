@@ -65,13 +65,8 @@ def bbox_to_rect(bbox, color):
     return f'{box}\n'
 
 
-def bbox_to_dict(bbox):
-    d = dict()
-    d['x'] = bbox[0]
-    d['y'] = bbox[1]
-    d['w'] = bbox[2] - bbox[0]
-    d['h'] = bbox[3] - bbox[1]
-    return d
+def bbox_to_coco(bbox, classification):
+    return f'{classification} {bbox[0]} {bbox[1]} {bbox[2] - bbox[0]} {bbox[3] - bbox[1]}'
 
 
 def bbox_to_pascal_voc(bbox, classification):
@@ -81,7 +76,7 @@ def bbox_to_pascal_voc(bbox, classification):
 def bbox_to_choice(bbox, classification):
     toText = True
     if toText:
-        return f'{bbox_to_pascal_voc(bbox, classification)}\n'
+        return f'{bbox_to_coco(bbox, classification)}\n'
     else:
         if classification in (Score.fclef_id, Score.gclef_id, Score.cclef_id):
             return bbox_to_rect(bbox, '#1FDEDE')
@@ -355,11 +350,11 @@ class Score:
         if sharps > 0:
             for x in range(0, sharps):
                 path = next(self.svgKeysigsIter)
-                self.coords_and_classes += bbox_to_choice(path.bbox(), Score.sharp_id)
+                # self.coords_and_classes += bbox_to_choice(path.bbox(), Score.sharp_id)
         elif sharps < 0:
             for x in range(sharps, 0):
                 path = next(self.svgKeysigsIter)
-                self.coords_and_classes += bbox_to_choice(path.bbox(), Score.flat_id)
+                # self.coords_and_classes += bbox_to_choice(path.bbox(), Score.flat_id)
 
     def set_clef(self, new_clef):
         old_last_clef = self.lastClef
