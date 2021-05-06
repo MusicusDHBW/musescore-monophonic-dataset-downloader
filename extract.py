@@ -79,7 +79,7 @@ def bbox_to_pascal_voc(bbox, classification):
 
 
 def bbox_to_choice(bbox, classification):
-    toText = False
+    toText = True
     if toText:
         return f'{bbox_to_coco(bbox, classification)}\n'
     else:
@@ -342,7 +342,8 @@ class Score:
 
             measure_clef = None
             measure_key = None
-            isNewSystem = measure.find('print') and measure.find('print').get('new-system')
+            lineStart = measure.find('print')
+            isNewSystem = lineStart and lineStart.get('new-system')
 
             for attribute in attributes:
                 if attribute.find('clef'):
@@ -352,6 +353,8 @@ class Score:
                         self.add_clef()
                 if attribute.find('key'):
                     measure_key = keysign(self.lastKeySign, attribute.find("key"))
+                    if lineStart is None and (self.lastKeySign > 0 > measure_key or self.lastKeySign < 0 < measure_key):
+                        self.set_keysign(0)
                     self.set_keysign(measure_key)
                     if isNewSystem:
                         self.add_keysign()
@@ -359,6 +362,9 @@ class Score:
                     self.set_timesign(timesign(attribute.find("time")))
                     if isNewSystem:
                         self.add_timesign()
+                measure_style = attribute.find('measure-style')
+                if measure_style is not None and measure_style.find('multiple-rest') is not None:
+                    raise Exception('unsupported rest style')
 
             # check for repeating clef
             if measure_clef is None and isNewSystem:
@@ -380,7 +386,7 @@ class Score:
                 elif note.find('rest') is not None:
                     boxElement = next(self.svgRestsIter)
                     self.coords_and_classes += bbox_to_choice(boxElement.bbox(), rests_id)
-        write_svg(self.coords_and_classes, svg_file)
+        # write_svg(self.coords_and_classes, svg_file)
         return self.coords_and_classes
 
     def add_clef(self):
@@ -422,4 +428,4 @@ class Score:
 
 if __name__ == '__main__':
     score = Score()
-    print(score.classify('experiment/test_one-1.svg', 'experiment/test_one.musicxml'))
+    print(score.classify('out_dev/21148.svg', 'out_dev/21148.musicxml'))
