@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ET
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 
-add_pixels = 20
+add_pixels = 8
 clefLineLoc = {
     'treble': {
         'A3': -4, 'B3': -3, 'C4': -2, 'D4': -1, 'E4': 0, 'F4': 1, 'G4': 2,
@@ -100,11 +100,12 @@ def bbox_to_choice(bbox, classification):
 def write_svg(boxes, svg):
     with open(svg, 'r') as f:
         data = f.readlines()
-    close_tag = data.pop(len(data)-1)
+    close_tag = data.pop(len(data) - 1)
     data.append(boxes)
     data.append(close_tag)
     with open(svg.replace('.svg', '_boxes.svg'), 'w') as f:
         f.writelines(data)
+
 
 def get_staff_system_index(element, systems):
     element_y = element.bbox()[1]
@@ -120,22 +121,6 @@ def get_staff_system_index(element, systems):
 
 def sort_after_x(element):
     return element.bbox()[0]
-
-
-def beam_category(beams):
-    beam_type = None
-    for beam in beams:
-        if beam.type == 'start' and beam_type is None:
-            beam_type = beam.type
-        elif beam.type == 'continue' and beam_type in (None, 'start', 'stop'):
-            beam_type = beam.type
-        elif beam.type == 'stop' and beam_type is None:
-            beam_type = beam.type
-        elif beam.type == 'start' and beam_type == 'stop':
-            beam_type = 'continue'
-        elif beam.type == 'stop' and beam_type == 'start':
-            beam_type = 'continue'
-    return beam_type
 
 
 def prepare_barline(barline):
@@ -160,10 +145,10 @@ def rest_duration(note):
     if note.find('rest').get('measure') == 'yes':
         return WHOLE
     else:
-        return duration(note)
+        return note_duration(note)
 
 
-def duration(note):
+def note_duration(note):
     type = note.findtext('type')
     dot = note.find('dot')
     if type == 'whole':
@@ -185,7 +170,7 @@ def duration(note):
     elif type == '32nd':
         return THIRTYTWO
     else:
-        raise Exception('no valid duration')
+        raise Exception('unsupported duration')
 
 
 def staffline(note):
@@ -194,7 +179,7 @@ def staffline(note):
     return f'{step}{octave}'
 
 
-def clef(clef):
+def signline_to_clef(clef):
     sign = clef.findtext('sign')
     line = clef.findtext('line')
     if f'{sign}{line}' == 'G2':
@@ -227,6 +212,47 @@ def determine_accidental(accidental):
     if accidental_id is None:
         raise Exception('unsupported accidental')
     return accidental_id
+
+
+def has_stem(note):
+    stems = note.findall('stem')
+    if len(stems) > 1:
+        raise Exception('unsupported amount of stems')
+    return len(stems) == 1
+
+
+def has_dot(note):
+    dots = note.findall('dot')
+    if len(dots) > 1:
+        raise Exception('unsupported amount of dots')
+    return len(dots) == 1
+
+
+def has_hook(note, duration):
+    hasNoBeams = note.find('beam') is None
+    return duration in (THIRTYTWO, SIXTEEN, EIGHTH, EIGHTH_DOT) and hasNoBeams
+
+
+def has_beams(note):
+    beams = [beam.text for beam in note.findall('beam')]
+    if len(beams) == 0:
+        return 0
+    stemDirection = note.findtext('stem')
+    category = 0
+    if 'continue' in beams or ('begin' in beams and 'end' in beams):
+        category = 2
+    elif 'begin' in beams:
+        category = 1
+    elif 'end' in beams:
+        category = 3
+    else:
+        raise Exception('unsupported beam configuration')
+    if stemDirection == 'up':
+        return category * 1
+    elif stemDirection == 'down':
+        return category * -1
+    else:
+        raise Exception('unsupported stem configuration')
 
 
 class Score:
@@ -347,7 +373,7 @@ class Score:
 
             for attribute in attributes:
                 if attribute.find('clef'):
-                    measure_clef = clef(attribute.find("clef"))
+                    measure_clef = signline_to_clef(attribute.find("clef"))
                     self.set_clef(measure_clef)
                     if isNewSystem:
                         self.add_clef()
@@ -375,16 +401,39 @@ class Score:
 
             for note in notes_rests:
                 if note.find('rest') is None:
+                    duration = note_duration(note)
                     accidental = note.find('accidental')
                     if accidental is not None:
                         boxAccidental = next(self.svgAccidentalsIter)
-                        self.coords_and_classes += bbox_to_choice(boxAccidental.bbox(), determine_accidental(accidental.text))
-                    # print(f'duration: {duration(note)}')
-                    # print(f'staffline: {staffline(note)}')
+                        self.coords_and_classes += bbox_to_choice(boxAccidental.bbox(),
+                                                                  determine_accidental(accidental.text))
                     boxElement = next(self.svgNotesIter)
+                    if has_stem(note):
+                        boxElement += next(self.svgStemsIter)
+                    beam_category = has_beams(note)
+                    if beam_category != 0:
+                        bbox = boxElement.bbox()
+                        if beam_category in (1, 2):
+                            boxElement += SimpleLine(bbox[2], bbox[3], bbox[2] + add_pixels, bbox[3])
+                        elif beam_category in (-2, -3):
+                            boxElement += SimpleLine(bbox[0] - add_pixels, bbox[1], bbox[0], bbox[1])
+                        if beam_category < 0:
+                            boxElement += SimpleLine(bbox[2], bbox[3], bbox[2], bbox[3] + add_pixels)
+                        elif beam_category > 0:
+                            boxElement += SimpleLine(bbox[0], bbox[1], bbox[0], bbox[1] - add_pixels)
+                    if has_dot(note):
+                        boxElement += next(self.svgNoteDotsIter)
+                    if has_hook(note, duration):
+                        boxElement += next(self.svgHooksIter)
+                    self.coords_and_classes += bbox_to_choice(boxElement.bbox(), duration)
+                    self.coords_and_classes += bbox_to_choice(boxElement.bbox(), clefLineLoc[self.lastClef][staffline(note)])
                     self.coords_and_classes += bbox_to_choice(boxElement.bbox(), notes_id)
                 elif note.find('rest') is not None:
+                    duration = rest_duration(note)
                     boxElement = next(self.svgRestsIter)
+                    if has_dot(note):
+                        boxElement += next(self.svgNoteDotsIter)
+                    self.coords_and_classes += bbox_to_choice(boxElement.bbox(), duration)
                     self.coords_and_classes += bbox_to_choice(boxElement.bbox(), rests_id)
         # write_svg(self.coords_and_classes, svg_file)
         return self.coords_and_classes
